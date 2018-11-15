@@ -1,0 +1,55 @@
+DOWNLOADER_MIDDLEWARES = {
+    'scrapy_splash.SplashCookiesMiddleware': 723,
+    'scrapy_splash.SplashMiddleware': 725,
+    'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
+};
+
+SPLASH_URL = 'http://localhost:32768/';  # docker mapped to 8050
+
+SPIDER_MIDDLEWARES = {
+    'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
+}
+
+DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter';
+HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage';
+
+import scrapy;
+from scrapy_splash import SplashRequest;
+
+class TripAdvisorHotelSpider(scrapy.Spider):
+    start_urls = [
+        "https://www.tripadvisor.com.sg/Hotel_Review-g294265-d302109-Reviews-Shangri_La_Hotel_Singapore-Singapore.html"]
+
+    # ""https://www.tripadvisor.com.sg/Hotels-g294265-Singapore-Hotels.html"
+
+    lua_pick_traveller_type = """
+        function main(splash)
+            splash:init_cookies(splash.args.cookies)
+            assert(splash:go{
+                splash.args.url
+            })
+            assert(splash:wait(0.5))
+            
+            cookies = splash:get_cookies();
+            print(cookies)
+            
+            return {
+                cookies = splash:get_cookies()
+            }
+        end
+                   """
+
+    def start_requests(self):
+        for url in self.start_urls:
+            yield SplashRequest(url, self.parseHotelDetails,
+                                endpoint='render.html', #'execute',  # 'render.html'
+                                args={
+                                    'wait': 0.5 #in seconds
+                                }
+                                # 'lua_source': self.lua_pick_traveller_type,
+                                )
+
+    def parseHotelDetails(self, response):
+        print(111);
+        # response.body is a result of render.html call; it contains HTML processed by a browser.
+    
